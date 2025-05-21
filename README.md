@@ -9,9 +9,12 @@ Bun-engine driven tools used for development, build, package release and more.
 Create a script that fixes issues, and also removes unused imports:
 ```
 "scripts": {
-    "format": "bun --bun eslint --config ./eslint.config.ts --rule 'unused-imports/no-unused-imports: [warn]' --fix . "
+    "format": "bun --bun eslint --config ./eslint.config.ts --rule 'unused-imports/no-unused-imports: [warn]' --fix . ",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
 },
 ```
+
+If using Svelte/SvelteKit, including `svelte-check` will do additional type-checking for the files.
 
 `eslint.config.ts`
 ```ts
@@ -31,6 +34,17 @@ export default config
 ```jsonc
 {
 	"extends": "@refzlund/repo/tsconfig.base.json"
+}
+```
+
+or for SvelteKit apps
+
+```jsonc
+{
+	"extends": [
+        "@refzlund/repo/tsconfig.base.json",
+        "./.svelte-kit/tsconfig.json"
+    ]
 }
 ```
 
