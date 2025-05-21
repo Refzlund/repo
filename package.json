@@ -3,7 +3,7 @@
 	"description": "A repository for repository management tools and set-ups.",
 	"license": "MIT",
 	"type": "module",
-	"version": "1.0.0-next.0",
+	"version": "1.0.0-next.1",
 	"scripts": {
 		"format": "bun --bun eslint --config ./eslint.config.ts --rule 'unused-imports/no-unused-imports: [warn]' --fix . "
 	},
@@ -16,6 +16,12 @@
 		"./eslint": "./config/eslint/eslint-config.ts",
 		"./tsconfig.base.json": "./config/typescript/tsconfig.base.json"
 	},
+	"files": [
+		"LICENSE",
+		"bin",
+		"config",
+		"forward"
+	],
 	"dependencies": {
 		"@eslint/compat": "^1.2.9",
 		"@eslint/js": "^9.27.0",
