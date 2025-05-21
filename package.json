@@ -1,5 +1,40 @@
 {
 	"name": "@refzlund/repo",
+	"description": "A repository for repository management tools and set-ups.",
+	"license": "MIT",
+	"type": "module",
 	"version": "0.0.0",
-	"description": "Tools for managing, building and releasing repositories."
+	"scripts": {
+		"format": "bun --bun eslint --config ./eslint.config.ts --rule 'unused-imports/no-unused-imports: [warn]' --fix . "
+	},
+	"bin": {
+		"repo-package": "./bin/repo-package.ts"
+	},
+	"exports": {
+		"./cli-colors": "./forward/cli-colors.ts",
+		"./cli-spinner": "./forward/cli-spinner.ts"
+	},
+	"dependencies": {
+		"@eslint/compat": "^1.2.9",
+		"@eslint/js": "^9.27.0",
+		"@stylistic/eslint-plugin": "^4.2.0",
+		"@sveltejs/package": "^2.3.11",
+		"@sveltejs/vite-plugin-svelte": "^5.0.3",
+		"colors": "^1.4.0",
+		"eslint": "^9.27.0",
+		"eslint-import-resolver-typescript": "^4.3.5",
+		"eslint-module-utils": "^2.12.0",
+		"eslint-plugin-import-no-duplicates-prefix-resolved-path": "^2.0.0",
+		"eslint-plugin-import-x": "^4.12.2",
+		"eslint-plugin-svelte": "^3.8.1",
+		"eslint-plugin-tailwindcss": "^3.18.0",
+		"eslint-plugin-unused-imports": "^4.1.4",
+		"globals": "^16.1.0",
+		"jiti": "^2.4.2",
+		"ora": "^8.2.0",
+		"typescript-eslint": "^8.32.1"
+	},
+	"devDependencies": {
+		"@types/bun": "^1.2.13"
+	}
 }
