@@ -4,6 +4,14 @@ Bun-engine driven tools used for development, build, package release and more.
 
 <br>
 
+#### Usage
+
+Install from the GitHub repository directly
+
+`bun add -D refzlund/repo`
+
+<br>
+
 ### ESLint
 
 Create a script that fixes issues, and also removes unused imports:
