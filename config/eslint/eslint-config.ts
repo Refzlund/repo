@@ -17,21 +17,59 @@ import 'eslint-import-resolver-typescript' // required for eslint-plugin-import-
 import tailwind from 'eslint-plugin-tailwindcss'
 
 // Config
-import { IGNORE_PATTERNS } from './ignore-patterns'
+import { ignorePatterns } from './ignore-patterns'
 import { SLOW_RULES } from './slow-rules'
 import { IMPORTING_RULES } from './importing-rules'
 import { TYPESCRIPT_RULES } from './typescript-rules'
 import { STYLISTIC_RULES } from './stylistic-rules'
-import { SVELTE_RULES } from './svelte-rules'
+import { svelteESLint } from './svelte-rules'
+import type { ParserOptions } from './eslint-types.js'
 
-export function eslint(metaURL: string) {
+interface ESLintOptions {
+	/**
+	### Default ignores
+
+	'\*\*\/.svelte-kit/*'  
+	'\*\*\/node_modules/**'  
+	'\*\*\/node_modules/zod/**'  
+	'\*\*\/node_modules/zod/lib/**'  
+	'\*\*\/node_modules/zod/lib/index.mjs'  
+	'\*\*\/.wrangler/*'  
+	'\*\*\/.git/*'  
+	'\*\*\/.mongodb/*'  
+	'\*\*\/.cloudflare/*'  
+	'\*\*\/lang/src/paraglide/*'  
+	'\*\*\/src-tauri/target/*'  
+	'\*\*\/_package/*'  
+	'\*\*\/.turbo/**'  
+	*/
+	ignores?: string[]
+}
+
+export default function eslint(metaURL: string, opts: ESLintOptions = {}) {
 	const gitignorePath = fileURLToPath(new URL('./.gitignore', metaURL))
 	const tsconfigPath = fileURLToPath(new URL('./tsconfig.json', metaURL))
 	const tsconfigPaths = fileURLToPath(new URL('./*/tsconfig.json', metaURL))
 	
+	const parserOptions = {
+		projectService: { defaultProject: tsconfigPath },
+		parser: ts.parser,
+		// Optimizing for performance
+		tsconfigRootDir: metaURL,
+		project: [
+			tsconfigPath,
+			tsconfigPaths
+		],
+		extraFileExtensions: ['.svelte'],
+		svelteConfig,
+		cacheLifetime: { glob: 'Infinity' },
+		// Add cache strategy for better performance
+		cache: true
+	} satisfies ParserOptions
+
 	return ts.config(
 		includeIgnoreFile(gitignorePath),
-		IGNORE_PATTERNS,
+		ignorePatterns(...(opts?.ignores || [])),
 		js.configs.recommended,
 		ts.configs.recommended,
 		svelte.configs.recommended,
@@ -45,21 +83,7 @@ export function eslint(metaURL: string) {
 					...globals.browser,
 					...globals.node 
 				},
-				parserOptions: {
-					projectService: { defaultProject: tsconfigPath },
-					extraFileExtensions: ['.svelte'],
-					parser: ts.parser,
-					svelteConfig,
-					// Optimizing for performance
-					tsconfigRootDir: metaURL,
-					project: [
-						tsconfigPath,
-						tsconfigPaths
-					],
-					cacheLifetime: { glob: 'Infinity' },
-					// Add cache strategy for better performance
-					cache: true
-				}
+				parserOptions
 			},
 			plugins: {
 				'@stylistic': stylistic,
@@ -70,10 +94,9 @@ export function eslint(metaURL: string) {
 				...SLOW_RULES,
 				...IMPORTING_RULES,
 				...TYPESCRIPT_RULES,
-				...STYLISTIC_RULES,
-				...SVELTE_RULES
+				...STYLISTIC_RULES
 			}
-		}
-		
+		},
+		svelteESLint(svelteConfig, parserOptions)
 	)
 }

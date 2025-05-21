@@ -3,12 +3,12 @@
 	"description": "A repository for repository management tools and set-ups.",
 	"license": "MIT",
 	"type": "module",
-	"version": "1.0.0-next.2",
+	"version": "1.0.0-next.3",
 	"scripts": {
 		"format": "bun --bun eslint --config ./eslint.config.ts --rule 'unused-imports/no-unused-imports: [warn]' --fix . "
 	},
 	"bin": {
-		"repo-package": "./bin/repo-package.ts"
+		"repo-pack": "./bin/repo-pack.ts"
 	},
 	"exports": {
 		"./cli-colors": "./forward/cli-colors.ts",

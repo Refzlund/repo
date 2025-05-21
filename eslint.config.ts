@@ -1,4 +1,4 @@
-import { eslint } from './config/eslint/eslint-config'
+import eslint from './config/eslint/eslint-config'
 
 const config = eslint(import.meta.url)
 

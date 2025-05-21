@@ -6,9 +6,16 @@ Bun-engine driven tools used for development, build, package release and more.
 
 ### ESLint
 
+Create a script that fixes issues, and also removes unused imports:
+```
+"scripts": {
+    "format": "bun --bun eslint --config ./eslint.config.ts --rule 'unused-imports/no-unused-imports: [warn]' --fix . "
+},
+```
+
 `eslint.config.ts`
 ```ts
-import eslint from 'github:refzlund/repo/eslint'
+import eslint from '@refzlund/repo/eslint'
 
 const config = eslint(import.meta.url)
 
@@ -23,7 +30,7 @@ export default config
 `tsconfig.json`
 ```jsonc
 {
-	"extends": "github:refzlund/repo/tsconfig.base.json"
+	"extends": "@refzlund/repo/tsconfig.base.json"
 }
 ```
 
@@ -33,12 +40,12 @@ export default config
 ### CLI colors and spinners
 
 ```ts
-import 'github:refzlund/repo/cli-colors' // via `colors`
+import '@refzlund/repo/cli-colors' // via `colors`
 console.log('text'.green)
 ```
 
 ```ts
-import spin 'github:refzlund/repo/cli-spinner' // via `ora`
+import spin '@refzlund/repo/cli-spinner' // via `ora`
 const spinner = spin('Loading...')
 spinner.succeed('Successful!')
 ```
@@ -49,7 +56,7 @@ spinner.succeed('Successful!')
 
 ### Packaging for publish
 
-Via `bunx repo-package`
+Via `bunx repo-pack`
 
 > ⠴ Packaging my-package v2.0.3  
 > ✔ Finished packaging my-package v2.0.3 -> _package
