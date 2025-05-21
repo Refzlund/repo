@@ -7,7 +7,7 @@ Bun-engine driven tools used for development, build, package release and more.
 ### ESLint
 
 Create a script that fixes issues, and also removes unused imports:
-```
+```jsonc
 "scripts": {
     "format": "bun --bun eslint --config ./eslint.config.ts --rule 'unused-imports/no-unused-imports: [warn]' --fix . ",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
@@ -33,7 +33,7 @@ export default config
 `tsconfig.json`
 ```jsonc
 {
-	"extends": "@refzlund/repo/tsconfig.base.json"
+    "extends": "@refzlund/repo/tsconfig.base.json"
 }
 ```
 
@@ -41,7 +41,7 @@ or for SvelteKit apps
 
 ```jsonc
 {
-	"extends": [
+   "extends": [
         "@refzlund/repo/tsconfig.base.json",
         "./.svelte-kit/tsconfig.json"
     ]
