@@ -65,11 +65,12 @@ spinner.text = `Packaging ${packageName} ${packageVersion}`
 
 // Delete files used for building/results of building
 for (const path of [paths._package, paths.dist, paths.sveltekit]) {
-	if (fs.existsSync(path))
+	if (fs.existsSync(path)) {
 		fs.rmSync(path, {
 			recursive: true,
 			force: true 
 		})
+	}
 }
 
 const result = Bun.spawnSync({
@@ -79,7 +80,21 @@ const result = Bun.spawnSync({
 })
 
 if (result.stderr.length > 0) {
-	console.error('Packaging error:', result.stderr.toString())
+	const errorMessage = result.stderr.toString()
+
+	spinner.fail('Failed packaging'.red + ` ${packageName} ${packageVersion}:`)
+	console.error('\n' + errorMessage.red + '\n')
+
+	for (const path of [paths.sveltekit, paths.dist]) {
+		if (fs.existsSync(path)) {
+			fs.rmSync(path, {
+				recursive: true,
+				force: true 
+			})
+		}
+	}
+
+	process.exit(1)
 }
 
 const out = result.stdout.toString()
@@ -129,10 +144,12 @@ for (const path of [paths.dist]) {
 
 // Delete unncessary dir
 for (const path of [paths.sveltekit]) {
-	if (fs.existsSync(path)) fs.rmSync(path, {
-		recursive: true,
-		force: true 
-	})
+	if (fs.existsSync(path)) {
+		fs.rmSync(path, {
+			recursive: true,
+			force: true 
+		})
+	}
 }
 
 // Update package.json
