@@ -1,6 +1,12 @@
 {
 	"extends": "./config/typescript/tsconfig.base.json",
 	"compilerOptions": {
-		"baseUrl": "."
-	}
+		"baseUrl": ".",
+	},
+	"include": ["**/*", ".storybook/*"],
+	"exclude": [
+		"node_modules",
+		"**/node_modules/*",
+		"**/*.mdx"
+	]
 }

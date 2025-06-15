@@ -2,8 +2,6 @@
 
 Bun-engine driven tools used for development, build, package release and more.
 
-<br>
-
 #### Usage
 
 Install from the GitHub repository directly
@@ -76,9 +74,7 @@ spinner.succeed('Successful!')
 <br>
 <br>
 
-### Packaging for publish
-
-Via `bunx repo-pack`
+### Packaging for publish — `bunx repo-pack`
 
 > ⠴ Packaging my-package v2.0.3  
 > ✔ Finished packaging my-package v2.0.3 -> _package
@@ -137,3 +133,22 @@ When built, these become
 `"files": [...]` is optional.
 <br/>
 `"dist"`, `"LICENSE"`, `"README.md"` are added by default.
+
+
+
+
+<br>
+<br>
+
+### Version Control — `bunx repo-changelog`
+
+
+
+
+
+<br>
+<br>
+
+### Formatting & linting — `bunx repo-format`
+
+Alternatively, lint yourself; `bun --bun eslint --config ./eslint.config.ts --rule 'unused-imports/no-unused-imports: [warn]' --fix .`

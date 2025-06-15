@@ -7,7 +7,7 @@ import js from '@eslint/js'
 import svelte from 'eslint-plugin-svelte'
 import globals from 'globals'
 import { fileURLToPath } from 'node:url'
-import ts from 'typescript-eslint'
+import ts, { type InfiniteDepthConfigWithExtends } from 'typescript-eslint'
 import svelteConfig from '../svelte/svelte.config.js'
 import stylistic from '@stylistic/eslint-plugin'
 import unusedImports from 'eslint-plugin-unused-imports'
@@ -29,24 +29,24 @@ interface ESLintOptions {
 	/**
 	### Default ignores
 
-	'\*\*\/.svelte-kit/*'  
-	'\*\*\/node_modules/**'  
-	'\*\*\/node_modules/zod/**'  
-	'\*\*\/node_modules/zod/lib/**'  
-	'\*\*\/node_modules/zod/lib/index.mjs'  
-	'\*\*\/.wrangler/*'  
-	'\*\*\/.git/*'  
-	'\*\*\/.mongodb/*'  
-	'\*\*\/.cloudflare/*'  
-	'\*\*\/lang/src/paraglide/*'  
-	'\*\*\/src-tauri/target/*'  
-	'\*\*\/_package/*'  
-	'\*\*\/.turbo/**'  
+	`**\.svelte-kit\*`  
+	`**\node_modules\**`  
+	`**\node_modules\zod\**`  
+	`**\node_modules\zod\lib\**`  
+	`**\node_modules\zod\lib\index.mjs`  
+	`**\.wrangler\*`  
+	`**\.git\*`  
+	`**\.mongodb\*`  
+	`**\.cloudflare\*`  
+	`**\lang\src\paraglide\*`  
+	`**\src-tauri\target\*`  
+	`**\_package\*`  
+	`**\.turbo\**`  
 	*/
 	ignores?: string[]
 }
 
-export default function eslint(metaURL: string, opts: ESLintOptions = {}) {
+export default function eslint(metaURL: string, ...configs: InfiniteDepthConfigWithExtends[]) {
 	const gitignorePath = fileURLToPath(new URL('./.gitignore', metaURL))
 	const tsconfigPath = fileURLToPath(new URL('./tsconfig.json', metaURL))
 	const tsconfigPaths = fileURLToPath(new URL('./*/tsconfig.json', metaURL))
@@ -69,13 +69,12 @@ export default function eslint(metaURL: string, opts: ESLintOptions = {}) {
 
 	return ts.config(
 		includeIgnoreFile(gitignorePath),
-		ignorePatterns(...(opts?.ignores || [])),
 		js.configs.recommended,
 		ts.configs.recommended,
 		svelte.configs.recommended,
 		tailwind.configs['flat/recommended'],
 		{
-			files: ['**/*.{js,mjs,cjs,ts,svelte}'],
+			files: ['**/*.{js,mjs,cjs,ts,svelte,tsx,jsx}', '.storybook/*.ts'],
 			extends: [importX.flatConfigs.recommended, importX.flatConfigs.typescript],
 			ignores: ['./**/node_modules/**'],
 			languageOptions: {
@@ -97,6 +96,7 @@ export default function eslint(metaURL: string, opts: ESLintOptions = {}) {
 				...STYLISTIC_RULES
 			}
 		},
-		svelteESLint(svelteConfig, parserOptions)
+		svelteESLint(svelteConfig, parserOptions),
+		...configs
 	)
 }

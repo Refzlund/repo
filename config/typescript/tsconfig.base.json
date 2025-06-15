@@ -11,10 +11,12 @@
 		"sourceMap": true,
 		"strict": true,
 		"moduleResolution": "bundler",
+		"jsx": "preserve",
+		"experimentalDecorators": true,
 		"module": "ESNext",
 		"target": "ESNext",
 		"verbatimModuleSyntax": true,
 		"isolatedModules": true,
-		"noImplicitAny": false
+		"noImplicitAny": false,
 	}
 }

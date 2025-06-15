@@ -22,7 +22,11 @@ export const STYLISTIC_RULES = {
 	'@stylistic/indent': [
 		'error',
 		'tab',
-		{ 'ignoredNodes': ['ConditionalExpression'] }
+		{
+			'ignoredNodes': ['ConditionalExpression'],
+			'ignoreComments': true,
+			'offsetTernaryExpressions': false
+		}
 	],
 	'@stylistic/indent-binary-ops': ['error', 'tab'],
 	'@stylistic/array-bracket-newline': ['error', { 'multiline': true }],
