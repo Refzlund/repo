@@ -3,7 +3,7 @@
 	"description": "A repository for repository management tools and set-ups.",
 	"license": "MIT",
 	"type": "module",
-	"version": "1.0.0-next.8",
+	"version": "1.0.0-next.9",
 	"scripts": {
 		"format": "bun --bun eslint --config ./eslint.config.ts --rule 'unused-imports/no-unused-imports: [warn]' --fix . "
 	},
@@ -26,6 +26,7 @@
 		"forward"
 	],
 	"dependencies": {
+		"@clack/prompts": "^0.11.0",
 		"@eslint/compat": "^1",
 		"@eslint/js": "^9",
 		"@storybook/addon-a11y": "^9",
@@ -37,8 +38,10 @@
 		"@storybook/svelte": "^9",
 		"@storybook/svelte-vite": "^9",
 		"@stylistic/eslint-plugin": "^4",
+		"@sveltejs/kit": "^2.21.5",
 		"@sveltejs/package": "^2",
 		"@sveltejs/vite-plugin-svelte": "^5",
+		"@tailwindcss/vite": "^4",
 		"@vitejs/plugin-react-swc": "^3",
 		"boxen": "^8",
 		"colors": "^1",
@@ -55,13 +58,11 @@
 		"globals": "^16",
 		"jiti": "^2",
 		"ora": "^8",
-		"storybook": "^9",
-		"typescript-eslint": "^8",
-		"@tailwindcss/vite": "^4",
-		"vite": "^6",
-		"svelte": "^5",
 		"react-dom": "^19.1.0",
-		"@sveltejs/kit": "^2.21.5"
+		"storybook": "^9",
+		"svelte": "^5",
+		"typescript-eslint": "^8",
+		"vite": "^6"
 	},
 	"devDependencies": {
 		"@types/bun": "^1"
