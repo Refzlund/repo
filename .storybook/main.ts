@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react-swc'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import tailwindcss from '@tailwindcss/vite'
 
 const workingDir = process.cwd()
 // * file:///c:/.../main.ts
@@ -23,12 +24,9 @@ const config: StorybookConfig = {
 	],
 	framework: '@storybook/svelte-vite',
 	viteFinal: async config => {
-		const { default: tailwindcss } = await import('@tailwindcss/vite')
-
 		config.plugins?.splice(0, 0, svelte())
-		if(tailwindcss) {
-			config.plugins?.splice(1, 0, tailwindcss())
-		}
+		config.plugins?.splice(1, 0, tailwindcss())
+		
 		config.plugins?.push(react({
 			// Required for `.svelte.ts` files to work correctly
 			devTarget: 'esnext'
