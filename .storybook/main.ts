@@ -26,7 +26,8 @@ const config: StorybookConfig = {
 	viteFinal: async config => {
 		config.plugins?.splice(0, 0, svelte())
 		config.plugins?.splice(1, 0, tailwindcss())
-		
+		config.root = workingDir
+
 		config.plugins?.push(react({
 			// Required for `.svelte.ts` files to work correctly
 			devTarget: 'esnext'
