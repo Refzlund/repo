@@ -1,9 +1,19 @@
 import type { StorybookConfig } from '@storybook/svelte-vite'
 import react from '@vitejs/plugin-react-swc'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const workingDir = process.cwd()
+// * file:///c:/.../main.ts
+const dir = path.join(fileURLToPath(import.meta.url), '..')
+const relative = path.relative(dir, workingDir)
+
+const mdx = path.join(relative, '**/*.mdx').replaceAll('\\', '/')
+const stories = path.join(relative, '**/*.stories.@(js|jsx|mjs|ts|tsx|svelte)').replaceAll('\\', '/')
 
 const config: StorybookConfig = {
-	stories: ['../**/*.mdx', '../**/*.stories.@(js|jsx|ts|tsx|svelte)'],
+	stories: [mdx, stories],
 	addons: [
 		'@storybook/addon-svelte-csf',
 		'@storybook/addon-docs',

@@ -27,7 +27,13 @@ export function svelteESLint(
 					'singleline': 2
 				}
 			],
-			'svelte/indent': ['error', { 'indent': 'tab' }],
+			'svelte/indent': [
+				'error',
+				{
+					'indent': 'tab'
+				}
+			],
+			'svelte/no-useless-mustaches': 'off',
 			'svelte/shorthand-attribute': 'error',
 			'svelte/shorthand-directive': 'error',
 			'svelte/sort-attributes': 'error',

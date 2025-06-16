@@ -1,4 +1,4 @@
-@<!-- @component
+<!-- @component
 
 	A wrapper for React components in Svelte.
 
@@ -31,7 +31,6 @@
 
 </Story>
 -->
-
 
 <script lang='ts'>
 	import { onMount, onDestroy } from 'svelte'
