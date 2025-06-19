@@ -2,7 +2,6 @@ import { fileURLToPath, spawn } from 'bun'
 import ora from 'ora'
 import 'colors'
 import path from 'path'
-import readline from 'node:readline'
 import { parseArgs } from 'util'
 
 function keypress() {

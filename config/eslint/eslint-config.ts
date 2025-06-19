@@ -12,20 +12,22 @@ import svelteConfig from '../svelte/svelte.config.js'
 import stylistic from '@stylistic/eslint-plugin'
 import unusedImports from 'eslint-plugin-unused-imports'
 import importPrefix from 'eslint-plugin-import-no-duplicates-prefix-resolved-path'
-import importX from 'eslint-plugin-import-x'
+import importXX from 'eslint-plugin-import-x'
 import 'eslint-import-resolver-typescript' // required for eslint-plugin-import-x
 import tailwind from 'eslint-plugin-tailwindcss'
 
 // Config
-import { ignorePatterns } from './ignore-patterns'
 import { SLOW_RULES } from './slow-rules'
 import { IMPORTING_RULES } from './importing-rules'
 import { TYPESCRIPT_RULES } from './typescript-rules'
 import { STYLISTIC_RULES } from './stylistic-rules'
 import { svelteESLint } from './svelte-rules'
 import type { ParserOptions } from './eslint-types.js'
+import { ignorePatterns } from './ignore-patterns.js'
 
 interface ESLintOptions {
+	/** e.g. `import.meta.url` */
+	metaURL: string
 	/**
 	### Default ignores
 
@@ -43,19 +45,19 @@ interface ESLintOptions {
 	`**\_package\*`  
 	`**\.turbo\**`  
 	*/
-	ignores?: string[]
+	globalIgnores?: string[]
 }
 
-export default function eslint(metaURL: string, ...configs: InfiniteDepthConfigWithExtends[]) {
-	const gitignorePath = fileURLToPath(new URL('./.gitignore', metaURL))
-	const tsconfigPath = fileURLToPath(new URL('./tsconfig.json', metaURL))
-	const tsconfigPaths = fileURLToPath(new URL('./*/tsconfig.json', metaURL))
+export default function eslint(options: ESLintOptions, ...configs: InfiniteDepthConfigWithExtends[]) {
+	const gitignorePath = fileURLToPath(new URL('./.gitignore', options.metaURL))
+	const tsconfigPath = fileURLToPath(new URL('./tsconfig.json', options.metaURL))
+	const tsconfigPaths = fileURLToPath(new URL('./*/tsconfig.json', options.metaURL))
 	
 	const parserOptions = {
 		projectService: { defaultProject: tsconfigPath },
 		parser: ts.parser,
 		// Optimizing for performance
-		tsconfigRootDir: metaURL,
+		tsconfigRootDir: options.metaURL,
 		project: [
 			tsconfigPath,
 			tsconfigPaths
@@ -68,14 +70,16 @@ export default function eslint(metaURL: string, ...configs: InfiniteDepthConfigW
 	} satisfies ParserOptions
 
 	return ts.config(
+		// @ts-expect-error Wrong type yada yada
 		includeIgnoreFile(gitignorePath),
+		ignorePatterns(...(options.globalIgnores ?? [])),
 		js.configs.recommended,
 		ts.configs.recommended,
 		svelte.configs.recommended,
 		tailwind.configs['flat/recommended'],
 		{
 			files: ['**/*.{js,mjs,cjs,ts,svelte,tsx,jsx}', '.storybook/*.ts'],
-			extends: [importX.flatConfigs.recommended, importX.flatConfigs.typescript],
+			extends: [importXX.flatConfigs.recommended, importXX.flatConfigs.typescript],
 			ignores: ['./**/node_modules/**'],
 			languageOptions: {
 				globals: {
