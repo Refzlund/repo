@@ -42,9 +42,11 @@ async function pack() {
 		readme: readmePath || Path.resolve('./README.md'),
 		license: licensePath || Path.resolve('./LICENSE'),
 
+		input: Path.resolve('./src'),
+		output: Path.resolve('./_package/dist'),
+
 		// generated
 		_package: Path.resolve('./_package'),
-		dist: Path.resolve('./dist'),
 		sveltekit: Path.resolve('./.svelte-kit')
 	}
 
@@ -65,7 +67,7 @@ async function pack() {
 	spinner.text = `Packaging ${packageName} ${packageVersion}`
 
 	// Delete files used for building/results of building
-	for (const path of [paths._package, paths.dist, paths.sveltekit]) {
+	for (const path of [paths._package, paths.sveltekit]) {
 		if (fs.existsSync(path)) {
 			fs.rmSync(path, {
 				recursive: true,
@@ -75,7 +77,7 @@ async function pack() {
 	}
 
 	const result = Bun.spawnSync({
-		cmd: ['svelte-package'],
+		cmd: ['svelte-package', '--input', paths.input, '--output', paths.output],
 		stdout: 'pipe',
 		stderr: 'pipe'
 	})
@@ -102,38 +104,29 @@ async function pack() {
 		console.log(issues.join('\n'))
 	}
 
-	if (!fs.existsSync(paths.dist)) {
-		console.error('Error: dist directory was not created.')
+	if (!fs.existsSync(paths.output)) {
+		console.error('Error: _package/dist directory was not created.')
 		return
 	}
-
-	fs.mkdirSync(paths._package)
 
 	// Copy files
 	for (const path of [paths.package, paths.readme, paths.license]) {
 		fs.copyFileSync(path, Path.join(paths._package, Path.basename(path)))
 	}
 
-	// Move files
-	for (const path of [paths.dist]) {
-		const target = Path.join(paths._package, Path.basename(path))
-		for (let i = 0;i < 20;i++) {
-			// When the file(s) has been recently modified, the file is locked,
-			// as its most likely being used by another process still.
-			// So we retry moving the file, until its not locked anymore.
-			await new Promise((res) => setTimeout(res, 100))
-			try {
-				fs.renameSync(path, target)
-			} catch (error) {
-				if (i === 19) {
-					console.error('Failed to rename file during build')
-					throw error
-				}
-				continue
+	// Delete .stories. files recursively
+	function deleteStoryFilesRecursively(dir: string) {
+		const entries = fs.readdirSync(dir, { withFileTypes: true })
+		for (const entry of entries) {
+			const fullPath = Path.join(dir, entry.name)
+			if (entry.isDirectory()) {
+				deleteStoryFilesRecursively(fullPath)
+			} else if (/\.stories\.(svelte|ts|js|d\.ts|svelte\.d\.ts)$/.test(entry.name)) {
+				fs.unlinkSync(fullPath)
 			}
-			break
 		}
 	}
+	deleteStoryFilesRecursively(paths.output)
 
 	// Delete unncessary dir
 	for (const path of [paths.sveltekit]) {
