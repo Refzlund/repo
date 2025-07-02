@@ -1,8 +1,9 @@
+#!/usr/bin/env bun
+
 import { fileURLToPath, spawn } from 'bun'
 import ora from 'ora'
 import 'colors'
 import path from 'path'
-import readline from 'node:readline'
 import { parseArgs } from 'util'
 
 function keypress() {
@@ -90,6 +91,8 @@ function removeFormat(str: string) {
 
 const decoder = new TextDecoder()
 const warnings = [] as string[]
+const incompatibles = [] as string[]
+
 for await (const line of subprocess.stdout) {
 	if(values.normal) {
 		console.log(decoder.decode(line))
@@ -141,11 +144,25 @@ for await (const line of subprocess.stdout) {
 		process.exit(1)
 	}
 
-	const warn = str.match(/WARN\s*(.+)$/im)
+	const warn = str.match(/.*WARN(ING:)?\s*((.|\n)+)$/im)
 	if(warn) {
-		const warning = warn[1]
+		const warning = warn[2]
 		warnings.push(warning)
 	}
+	
+	const incompatible = str.match(/using Storybook .+ but you have packages which are incompatible/im)
+	console.log({ str })
+	if(incompatible) {
+		// Extract all bullet points with package names
+		const packageMatches = str.match(/- (.+)/gm)
+		if(packageMatches) {
+			for(const match of packageMatches) {
+				const packageInfo = match.replace(/^- /, '')
+				incompatibles.push(packageInfo)
+			}
+		}
+	}
+
 
 	const v = str.match(/storybook (v(\d+|\.)+)\s*$/im)
 	if(v) {
@@ -179,6 +196,14 @@ for await (const line of subprocess.stdout) {
 			spinner.warn(` Warnings:  ${warnings.length}`.yellow)
 			for(const warning of warnings) {
 				console.log(`-  ${warning}`.yellow)
+			}
+		}
+
+		if(incompatibles.length > 0) {
+			console.log('')
+			spinner.warn(` Incompatible packages:  ${incompatibles.length}`.yellow)
+			for(const incompatible of incompatibles) {
+				console.log(`-  ${incompatible}`.yellow)
 			}
 		}
 

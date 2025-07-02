@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 import Bun from 'bun'
 import * as fs from 'node:fs'
 import Path from 'node:path'
