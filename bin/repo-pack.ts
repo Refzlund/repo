@@ -76,17 +76,36 @@ async function pack() {
 		}
 	}
 
+	const sync = Bun.spawnSync({
+		cmd: ['svelte-kit', 'sync'],
+		stdout: 'pipe',
+		stderr: 'pipe'
+	})
+
 	const result = Bun.spawnSync({
 		cmd: ['svelte-package', '--input', paths.input, '--output', paths.output],
 		stdout: 'pipe',
 		stderr: 'pipe'
 	})
 
+	const lint = Bun.spawnSync({
+		cmd: ['publint'],
+		stdout: 'pipe',
+		stderr: 'pipe'
+	})
+	
 	let errors = false
-	if (result.stderr.length > 0) {
+	if (result.stderr.length > 0 || sync.stderr.length > 0 || lint.stderr.length > 0) {
 		errors = true
 		const prefix = '×'.red + '   '
-		const errorMessage = result.stderr.toString().split('\n').filter(v => v.length > 1).map(v => v.reset).join('\n' + prefix)
+		const errorSources = [sync.stderr, result.stderr, lint.stderr]
+		const errorMessage = errorSources
+			.map(e => e.toString())
+			.join('')
+			.split('\n')
+			.filter(v => v.length > 1)
+			.map(v => v.reset)
+			.join('\n' + prefix)
 
 		spinner.fail('Errors during packaging'.red + ` ${packageName} ${packageVersion}` + ' -> '.gray + _package.italic + ':')
 		console.error('\n' + prefix + errorMessage)
