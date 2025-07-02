@@ -151,7 +151,7 @@ for await (const line of subprocess.stdout) {
 	}
 	
 	const incompatible = str.match(/using Storybook .+ but you have packages which are incompatible/im)
-	console.log({ str })
+	
 	if(incompatible) {
 		// Extract all bullet points with package names
 		const packageMatches = str.match(/- (.+)/gm)
