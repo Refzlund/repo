@@ -3,7 +3,7 @@
 	"description": "A repository for repository management tools and set-ups.",
 	"license": "MIT",
 	"type": "module",
-	"version": "1.0.0-next.12",
+	"version": "1.0.0-next.13",
 	"scripts": {
 		"format": "bun --bun eslint --config ./eslint.config.ts --rule 'unused-imports/no-unused-imports: [warn]' --fix . "
 	},
@@ -25,6 +25,9 @@
 		"config",
 		"forward"
 	],
+	"peerDependencies": {
+		"eslint-plugin-tailwindcss": ">3"
+	},
 	"dependencies": {
 		"@clack/prompts": "^0.11.0",
 		"@eslint/compat": "^1",
@@ -53,7 +56,6 @@
 		"eslint-plugin-import-no-duplicates-prefix-resolved-path": "^2",
 		"eslint-plugin-import-x": "^4",
 		"eslint-plugin-svelte": "^3",
-		"eslint-plugin-tailwindcss": "^3",
 		"eslint-plugin-unused-imports": "^4",
 		"globals": "^16",
 		"jiti": "^2",
