@@ -16,6 +16,7 @@ import importXX from 'eslint-plugin-import-x'
 import 'eslint-import-resolver-typescript' // required for eslint-plugin-import-x
 import tailwind from 'eslint-plugin-tailwindcss'
 
+
 // Config
 import { SLOW_RULES } from './slow-rules'
 import { IMPORTING_RULES } from './importing-rules'
@@ -24,6 +25,7 @@ import { STYLISTIC_RULES } from './stylistic-rules'
 import { svelteESLint } from './svelte-rules'
 import type { ParserOptions } from './eslint-types.js'
 import { ignorePatterns } from './ignore-patterns.js'
+import { JSON_RULES } from './json-rules.js'
 
 interface ESLintOptions {
 	/** e.g. `import.meta.url` */
@@ -78,7 +80,7 @@ export default function eslint(options: ESLintOptions, ...configs: InfiniteDepth
 		svelte.configs.recommended,
 		tailwind.configs['flat/recommended'],
 		{
-			files: ['**/*.{js,mjs,cjs,ts,svelte,tsx,jsx}', '.storybook/*.ts'],
+			files: ['**/*.{js,mjs,cjs,ts,svelte,tsx,jsx,json,jsonc,json5}', '.storybook/*.ts'],
 			extends: [importXX.flatConfigs.recommended, importXX.flatConfigs.typescript],
 			ignores: ['./**/node_modules/**'],
 			languageOptions: {
@@ -101,6 +103,7 @@ export default function eslint(options: ESLintOptions, ...configs: InfiniteDepth
 			}
 		},
 		svelteESLint(svelteConfig, parserOptions),
+		JSON_RULES,
 		...configs
 	)
 }

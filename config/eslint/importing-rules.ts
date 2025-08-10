@@ -10,6 +10,7 @@ export const IMPORTING_RULES = {
 		}
 	],
 	'import-x/no-named-as-default-member': 'off',
+	'import-x/no-named-as-default': 'off',
 
 	'unused-imports/no-unused-imports': 'off',
 	'unused-imports/no-unused-vars': [
