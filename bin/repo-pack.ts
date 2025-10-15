@@ -77,19 +77,19 @@ async function pack() {
 	}
 
 	const sync = Bun.spawnSync({
-		cmd: ['svelte-kit', 'sync'],
+		cmd: ['bunx', 'svelte-kit', 'sync'],
 		stdout: 'pipe',
 		stderr: 'pipe'
 	})
 
 	const result = Bun.spawnSync({
-		cmd: ['svelte-package', '--input', paths.input, '--output', paths.output],
+		cmd: ['bunx', 'svelte-package', '--input', paths.input, '--output', paths.output],
 		stdout: 'pipe',
 		stderr: 'pipe'
 	})
 
 	const lint = Bun.spawnSync({
-		cmd: ['publint'],
+		cmd: ['bunx', 'publint'],
 		stdout: 'pipe',
 		stderr: 'pipe'
 	})

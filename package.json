@@ -25,10 +25,8 @@
 		"config",
 		"forward"
 	],
-	"peerDependencies": {
-		"eslint-plugin-tailwindcss": ">3"
-	},
 	"dependencies": {
+		"eslint-plugin-tailwindcss": "beta",
 		"@clack/prompts": "^0.11.0",
 		"@eslint/compat": "^1",
 		"@eslint/js": "^9",
