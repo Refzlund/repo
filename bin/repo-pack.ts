@@ -89,26 +89,48 @@ async function pack() {
 	})
 
 	const lint = Bun.spawnSync({
-		cmd: ['bunx', 'publint'],
+		cmd: ['bunx', 'publint', paths._package],
 		stdout: 'pipe',
 		stderr: 'pipe'
 	})
 	
 	let errors = false
 	if (result.stderr.length > 0 || sync.stderr.length > 0 || lint.stderr.length > 0) {
-		errors = true
-		const prefix = '×'.red + '   '
-		const errorSources = [sync.stderr, result.stderr, lint.stderr]
-		const errorMessage = errorSources
-			.map(e => e.toString())
-			.join('')
+		
+		const prefixErr = '×'.red
+		const prefixWarn = '⚠'.yellow.dim
+		console.log('')
+
+		if(result.stderr.length > 0) {
+			errors = true
+			spinner.fail('Errors during packaging'.red + ` ${packageName} ${packageVersion}` + ' -> '.gray + _package.italic + ':')
+		}
+
+		const prefixate = (str: string, prefix: string = prefixErr) => str
 			.split('\n')
 			.filter(v => v.length > 1)
 			.map(v => v.reset)
-			.join('\n' + prefix)
+			.join('\n' + prefix + '   ')
 
-		spinner.fail('Errors during packaging'.red + ` ${packageName} ${packageVersion}` + ' -> '.gray + _package.italic + ':')
-		console.error('\n' + prefix + errorMessage)
+		const synxError = sync.stderr.toString()
+		if(synxError.length > 0) {
+			console.log('')
+			console.log('svelte-sync'.cyan + ' issues'.yellow + ':'.dim)
+			console.log(prefixate(synxError))
+		}
+		const lintError = lint.stderr.toString()
+		if(lintError.length > 0) {
+			console.log('')
+			console.log('publint'.cyan + ' issues'.yellow + ':'.dim)
+			console.log(prefixate(lintError))
+		}
+		const resultError = result.stderr.toString()
+		if(resultError.length > 0) {
+			console.log('@sveltejs/package'.cyan + ' error'.red + ':'.dim)
+			console.log(prefixate(resultError, prefixErr))
+		}
+		
+		console.log('')
 	}
 
 	const out = result.stdout.toString()
