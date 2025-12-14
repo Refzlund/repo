@@ -52,6 +52,274 @@ async function pack() {
 
 	const _package = `${Path.relative(Path.resolve('.'), paths._package)}`
 
+	// Helper to strip comments from code (preserves strings including template literals)
+	function stripComments(code: string): string {
+		let result = ''
+		let i = 0
+		while (i < code.length) {
+			// Template literal
+			if (code[i] === '`') {
+				result += code[i++]
+				while (i < code.length && code[i] !== '`') {
+					if (code[i] === '\\') { result += code[i++] }
+					if (i < code.length) { result += code[i++] }
+				}
+				if (i < code.length) { result += code[i++] }
+			}
+			// Double-quoted string
+			else if (code[i] === '"') {
+				result += code[i++]
+				while (i < code.length && code[i] !== '"') {
+					if (code[i] === '\\') { result += code[i++] }
+					if (i < code.length) { result += code[i++] }
+				}
+				if (i < code.length) { result += code[i++] }
+			}
+			// Single-quoted string
+			else if (code[i] === '\'') {
+				result += code[i++]
+				while (i < code.length && code[i] !== '\'') {
+					if (code[i] === '\\') { result += code[i++] }
+					if (i < code.length) { result += code[i++] }
+				}
+				if (i < code.length) { result += code[i++] }
+			}
+			// Line comment
+			else if (code[i] === '/' && code[i + 1] === '/') {
+				while (i < code.length && code[i] !== '\n') { i++ }
+			}
+			// Block comment
+			else if (code[i] === '/' && code[i + 1] === '*') {
+				i += 2
+				while (i < code.length && !(code[i] === '*' && code[i + 1] === '/')) { i++ }
+				i += 2
+			}
+			else {
+				result += code[i++]
+			}
+		}
+		return result
+	}
+
+	// Helper to parse JSON with comments (JSONC)
+	function parseJSONWithComments(content: string) {
+		try {
+			// Remove block comments
+			let cleaned = content.replace(/\/\*[\s\S]*?\*\//g, '')
+			// Remove line comments (but not inside strings)
+			cleaned = cleaned.replace(/^(\s*)(\/\/.*)$/gm, '$1')
+			// Remove trailing commas before } or ]
+			cleaned = cleaned.replace(/,\s*([}\]])/g, '$1')
+			return JSON.parse(cleaned)
+		} catch {
+			return {}
+		}
+	}
+
+	// Load TSConfig recursively (supports array extends in TS 5.0+)
+	function loadTSConfig(configPath: string): Record<string, unknown> {
+		if (!fs.existsSync(configPath)) return {}
+		const content = fs.readFileSync(configPath, 'utf-8')
+		const config = parseJSONWithComments(content)
+		
+		let extendedConfig: Record<string, unknown> = {}
+		const extendsList = Array.isArray(config.extends) ? config.extends : config.extends ? [config.extends] : []
+		
+		for (const ext of extendsList) {
+			let extendsPath = ext
+			if (extendsPath.startsWith('.')) {
+				extendsPath = Path.resolve(Path.dirname(configPath), extendsPath)
+			} else {
+				try {
+					extendsPath = Bun.resolveSync(extendsPath, Path.dirname(configPath))
+				} catch {
+					continue
+				}
+			}
+			if (extendsPath && fs.existsSync(extendsPath)) {
+				const parentConfig = loadTSConfig(extendsPath)
+				extendedConfig = {
+					...extendedConfig,
+					...parentConfig,
+					compilerOptions: {
+						...(extendedConfig as Record<string, unknown>).compilerOptions as Record<string, unknown>,
+						...(parentConfig.compilerOptions as Record<string, unknown>),
+						paths: {
+							...((extendedConfig as Record<string, unknown>).compilerOptions as Record<string, unknown>)?.paths as Record<string, unknown>,
+							...((parentConfig.compilerOptions as Record<string, unknown>)?.paths as Record<string, unknown>)
+						}
+					}
+				}
+			}
+		}
+		
+		return {
+			...extendedConfig,
+			...config,
+			compilerOptions: {
+				...(extendedConfig.compilerOptions as Record<string, unknown>),
+				...config.compilerOptions,
+				paths: {
+					...((extendedConfig.compilerOptions as Record<string, unknown>)?.paths as Record<string, unknown>),
+					...config.compilerOptions?.paths
+				},
+				baseUrl: config.compilerOptions?.baseUrl || (extendedConfig.compilerOptions as Record<string, unknown>)?.baseUrl
+			}
+		}
+	}
+
+	const tsConfig = loadTSConfig(Path.resolve('./tsconfig.json'))
+	const compilerOptions = (tsConfig.compilerOptions || {}) as Record<string, unknown>
+	const tsPaths = (compilerOptions.paths || {}) as Record<string, string[]>
+	const baseUrl = Path.resolve('.', (compilerOptions.baseUrl as string) || '.')
+
+	function resolveAlias(importPath: string): string | null {
+		// Sort aliases by length (longest first) to match most specific first
+		const sortedAliases = Object.entries(tsPaths).sort((a, b) => b[0].length - a[0].length)
+		
+		for (const [alias, aliasPaths] of sortedAliases) {
+			const paths = aliasPaths as string[]
+			if (!paths || paths.length === 0) continue
+			
+			const hasWildcard = alias.includes('*')
+			
+			if (hasWildcard) {
+				// Wildcard alias: "$lib/*" -> ["./src/lib/*"]
+				const aliasPrefix = alias.replace(/\*$/, '')
+				if (importPath.startsWith(aliasPrefix)) {
+					const target = paths[0].replace(/\*$/, '')
+					const suffix = importPath.slice(aliasPrefix.length)
+					return Path.resolve(baseUrl, target, suffix)
+				}
+			} else {
+				// Exact alias: "$lib" -> ["./src/lib"] or "$lib" -> ["./src/lib/index.ts"]
+				if (importPath === alias) {
+					return Path.resolve(baseUrl, paths[0])
+				}
+				// Also check if import is alias + subpath (e.g., "$lib/foo" with alias "$lib")
+				if (importPath.startsWith(alias + '/')) {
+					const suffix = importPath.slice(alias.length + 1)
+					return Path.resolve(baseUrl, paths[0], suffix)
+				}
+			}
+		}
+		return null
+	}
+
+	function hasSvelteExportCondition(obj: unknown): boolean {
+		if (!obj || typeof obj !== 'object') return false
+		if ('svelte' in obj) return true
+		for (const value of Object.values(obj)) {
+			if (hasSvelteExportCondition(value)) return true
+		}
+		return false
+	}
+
+	function isSveltePackage(filePath: string): boolean {
+		let current = Path.dirname(filePath)
+		while (current !== Path.parse(current).root) {
+			const pkgPath = Path.join(current, 'package.json')
+			if (fs.existsSync(pkgPath)) {
+				try {
+					const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
+					// Check for "svelte" field (legacy) or "svelte" condition in exports
+					if (pkg.svelte || hasSvelteExportCondition(pkg.exports)) {
+						return true
+					}
+					return false // Found package.json, stop searching
+				} catch {
+					// ignore error
+				}
+			}
+			if (Path.basename(current) === 'node_modules') return false // Don't go above node_modules
+			current = Path.dirname(current)
+		}
+		return false
+	}
+
+	function hasSvelteDependency(filePath: string, visited = new Set<string>()): boolean {
+		// Try to resolve the file path first (handles missing extensions)
+		let resolvedFilePath = filePath
+		if (!fs.existsSync(filePath)) {
+			try {
+				resolvedFilePath = Bun.resolveSync(filePath, Path.dirname(filePath))
+			} catch {
+				return false
+			}
+		}
+
+		if (visited.has(resolvedFilePath)) return false
+		visited.add(resolvedFilePath)
+
+		// Check AFTER resolution if it's a Svelte file
+		if (/\.svelte(\.ts|\.js)?$/.test(resolvedFilePath)) return true
+
+		if (!fs.existsSync(resolvedFilePath)) return false
+		
+		if (fs.statSync(resolvedFilePath).isDirectory()) {
+			const indices = ['index.ts', 'index.js', 'index.svelte', 'index.svelte.ts', 'index.svelte.js']
+			for (const index of indices) {
+				const indexPath = Path.join(resolvedFilePath, index)
+				if (fs.existsSync(indexPath)) {
+					if (hasSvelteDependency(indexPath, visited)) return true
+				}
+			}
+			return false
+		}
+
+		const content = fs.readFileSync(resolvedFilePath, 'utf-8')
+		const cleanContent = stripComments(content)
+		
+		// Match static imports/exports and dynamic imports
+		const importRegex = /(?:import|export)\s+(?:(?:type\s+)?[\w\s{},*]*\s+from\s+)?['"]([^'"]+)['"]|import\s*\(\s*['"]([^'"]+)['"]\s*\)/g
+		
+		let match
+		while ((match = importRegex.exec(cleanContent)) !== null) {
+			const importPath = match[1] || match[2]
+			if (!importPath) continue
+
+			let resolvedPath: string | null = null
+			
+			// 1. Try Alias
+			const aliased = resolveAlias(importPath)
+			if (aliased) {
+				resolvedPath = aliased
+			} 
+			// 2. Try Relative
+			else if (importPath.startsWith('.')) {
+				resolvedPath = Path.resolve(Path.dirname(resolvedFilePath), importPath)
+			} 
+			// 3. Try Bun Resolve (handles node_modules and extensions)
+			else {
+				try {
+					resolvedPath = Bun.resolveSync(importPath, Path.dirname(resolvedFilePath))
+				} catch {
+					// ignore
+				}
+			}
+
+			// If we have a path (either from alias or relative), we might still need to resolve extensions/indices
+			// Bun.resolveSync can do this if we pass the absolute path
+			if (resolvedPath && !resolvedPath.includes('node_modules')) {
+				try {
+					resolvedPath = Bun.resolveSync(resolvedPath, Path.dirname(resolvedFilePath))
+				} catch {
+					// fallback to manual extension check if Bun fails on absolute path (unlikely)
+				}
+			}
+
+			if (resolvedPath) {
+				if (resolvedPath.includes('node_modules')) {
+					if (isSveltePackage(resolvedPath)) return true
+				} else {
+					if (hasSvelteDependency(resolvedPath, visited)) return true
+				}
+			}
+		}
+		
+		return false
+	}
+
 	// Get package name from package.json
 	const packageJSON = JSON.parse(fs.readFileSync(paths.package, 'utf-8'))
 	const { name, version, publishConfig = { directory: undefined } } = packageJSON as {
@@ -98,7 +366,6 @@ async function pack() {
 	if (result.stderr.length > 0 || sync.stderr.length > 0 || lint.stderr.length > 0) {
 		
 		const prefixErr = '×'.red
-		const prefixWarn = '⚠'.yellow.dim
 		console.log('')
 
 		if(result.stderr.length > 0) {
@@ -197,15 +464,24 @@ async function pack() {
 	// Ensure only unique keys in json.files
 	json.files = [...new Set(json.files)]
 
-	for (const [key, path] of Object.entries(json.exports) as [string, string][]) {
-		const p = path.replace(/^\.\/src/, './dist')
-		json.exports[key] = {
-			types: p.replace(/\.ts$/, '.d.ts'),
-			default: p.replace(/\.ts$/, '.js')
+	for (const [exportKey, exportValue] of Object.entries(json.exports)) {
+		// Skip if the export is already a conditional object (not a simple string path)
+		if (typeof exportValue !== 'string') continue
+		
+		const distPath = exportValue.replace(/^\.\/src/, './dist')
+		const sourcePath = Path.resolve(exportValue)
+		const isSvelte = hasSvelteDependency(sourcePath)
+
+		json.exports[exportKey] = {
+			types: distPath.replace(/\.ts$/, '.d.ts')
 		}
 
-		if(usesSvelte) {
-			json.exports[key]['svelte'] = p.replace(/\.ts$/, '.js')
+		if (!isSvelte) {
+			json.exports[exportKey].default = distPath.replace(/\.ts$/, '.js')
+		}
+
+		if (usesSvelte || isSvelte) {
+			json.exports[exportKey].svelte = distPath.replace(/\.ts$/, '.js')
 		}
 	}
 
