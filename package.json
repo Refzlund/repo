@@ -3,7 +3,7 @@
 	"description": "A repository for repository management tools and set-ups.",
 	"license": "MIT",
 	"type": "module",
-	"version": "1.0.0-next.15",
+	"version": "1.0.0-next.16",
 	"scripts": {
 		"format": "bun --bun eslint --config ./eslint.config.ts --rule 'unused-imports/no-unused-imports: [warn]' --fix . "
 	},
@@ -12,6 +12,7 @@
 		"repo-storybook": "./bin/repo-storybook.ts"
 	},
 	"exports": {
+		"./pack": "./forward/pack.ts",
 		"./cli-colors": "./forward/cli-colors.ts",
 		"./cli-spinner": "./forward/cli-spinner.ts",
 		"./cli-box": "./forward/cli-box.ts",
@@ -58,6 +59,7 @@
 		"globals": "^16",
 		"jiti": "^2",
 		"ora": "^8",
+		"picomatch": "^4.0.2",
 		"react-dom": "^19.1.0",
 		"storybook": "^9",
 		"svelte": "^5",

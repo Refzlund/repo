@@ -81,6 +81,55 @@ spinner.succeed('Successful!')
 
 <br>
 
+#### Recommended: call `pack()` from your own script
+
+`repo-pack` is now implemented as a function export, so each package can have its own small `pack.ts` script (no config-file loading).
+
+Create `pack.ts` in the package root:
+
+```ts
+import { pack, definePackOptions } from '@refzlund/repo/pack'
+
+await pack(definePackOptions({
+    // defaults:
+    // input: './src'
+    // outDir: '_package'
+    // distDir: 'dist'
+
+    // Copies are in addition to the nearest README.md + LICENSE
+    extraFiles: ['LLM.md'],
+
+    copy: [
+        {
+            from: './emails',
+            to: './emails',
+            exclude: ['**/*.stories.*', '**/*.test.*']
+        }
+    ],
+
+    cli: {
+        entry: './bin/cli.ts',
+        output: './bin/my-cli.js',
+        shebang: true,
+        binName: 'my-cli'
+    },
+
+    hooks: {
+        postPackage: 'bun scripts/fix-esm-imports.ts'
+    }
+}))
+```
+
+Run it from that package folder:
+
+`bun ./pack.ts`
+
+You can still run the zero-config wrapper:
+
+`bunx repo-pack`
+
+<br>
+
 #### LICENSE, README.md
 
 Will pick the nearest `LICENSE` and `README.md` file (from `./`, `../` or `../../` for monorepo support). 
@@ -96,6 +145,8 @@ Provide the `publishConfig` directory to assign what code is packed and publishe
     "directory": "_package"
 }
 ```
+
+If you set `outDir` to something else, keep `publishConfig.directory` in sync.
 
 <br/>
 

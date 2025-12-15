@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "@refzlund/repo",
@@ -36,6 +37,7 @@
         "globals": "^16",
         "jiti": "^2",
         "ora": "^8",
+        "picomatch": "^4.0.2",
         "react-dom": "^19.1.0",
         "storybook": "^9",
         "svelte": "^5",
