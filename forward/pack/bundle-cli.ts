@@ -26,7 +26,7 @@ export async function bundleCli(config: CliBundleConfig, packageRoot: string, ou
 		format: config.format === 'cjs' ? 'cjs' : 'esm',
 		target: config.platform === 'browser' ? 'browser' : 'node',
 		external: config.external || [],
-		minify: false
+		minify: config.minify ?? false
 	})
 
 	if (!result.success) {

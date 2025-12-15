@@ -4,9 +4,9 @@ import Path from 'node:path'
 import ora from 'ora'
 import 'colors'
 
-import type { PackOptions, SourcePackageJson, OutputPackageJson, PackPaths } from './types'
+import type { PackOptions, SourcePackageJson, OutputPackageJson, PackPaths, CliBundleConfig } from './types'
 import { findNearestFile } from './utils/find-nearest-file'
-import { copyRecursive, deleteFilesRecursively, STORY_FILE_PATTERN } from './copy'
+import { copyRecursive, copyDirectory, deleteFilesRecursively, STORY_FILE_PATTERN } from './copy'
 import { bundleCli } from './bundle-cli'
 import { createHookRunner } from './hooks'
 import { createSvelteDependencyChecker } from './svelte-detection'
@@ -15,8 +15,10 @@ import { updatePackageJson, getPublishWarnings } from './exports'
 // Re-export types and utilities
 export type {
 	CopyEntry,
+	CopyDirEntry,
 	CliTransform,
 	CliBundleConfig,
+	BundleConfig,
 	PackHooks,
 	PackOptions,
 	OutputPackageJson,
@@ -31,7 +33,7 @@ export { stripComments } from './utils/strip-comments'
 export { parseJSONWithComments } from './utils/jsonc'
 export { findNearestFile } from './utils/find-nearest-file'
 export { normalizeRelPath, computeBinName } from './utils/normalize-path'
-export { copyRecursive, deleteFilesRecursively, STORY_FILE_PATTERN } from './copy'
+export { copyRecursive, copyDirectory, deleteFilesRecursively, STORY_FILE_PATTERN } from './copy'
 export { bundleCli, applyTransforms, addShebang } from './bundle-cli'
 export { createHookRunner, runHookCommand } from './hooks'
 export { createSvelteDependencyChecker, loadTSConfig } from './svelte-detection'
@@ -200,7 +202,7 @@ export async function pack(options: PackOptions = {}): Promise<void> {
 			if (path && fs.existsSync(path)) fs.copyFileSync(path, Path.join(paths._package, filename))
 		}
 
-		// 10. Copy directories
+		// 10. Copy directories (granular)
 		if (options.copy && options.copy.length > 0) {
 			spinner.text = 'Copying directories...'
 			for (const entry of options.copy) {
@@ -214,13 +216,45 @@ export async function pack(options: PackOptions = {}): Promise<void> {
 			}
 		}
 
+		// 10b. Copy directories (simplified with remap)
+		if (options.copyDir && options.copyDir.length > 0) {
+			spinner.text = 'Copying directories...'
+			for (const entry of options.copyDir) {
+				const fromAbs = Path.resolve(packageRoot, entry.from)
+				const toName = entry.to ?? Path.basename(entry.from)
+				const toAbs = Path.resolve(paths._package, toName)
+				await copyDirectory({
+					fromDir: fromAbs,
+					toDir: toAbs,
+					exclude: entry.exclude,
+					remap: entry.remap
+				})
+			}
+		}
+
 		// 11. hooks.postCopy
 		await hookRunner.run(options.hooks?.postCopy)
 
-		// 12. Bundle CLI
-		if (options.cli) {
-			spinner.text = 'Bundling CLI...'
-			await bundleCli(options.cli, packageRoot, paths._package)
+		// 12. Bundle entry points (CLI, workers, etc.)
+		// Support both `bundle` (new) and `cli` (deprecated) options
+		const bundleConfigs: CliBundleConfig[] = []
+		if (options.bundle) {
+			if (Array.isArray(options.bundle)) {
+				bundleConfigs.push(...options.bundle)
+			} else {
+				bundleConfigs.push(options.bundle)
+			}
+		}
+		if (options.cli && !options.bundle) {
+			// Only use cli if bundle is not set (backward compatibility)
+			bundleConfigs.push(options.cli)
+		}
+
+		if (bundleConfigs.length > 0) {
+			spinner.text = 'Bundling entry points...'
+			for (const config of bundleConfigs) {
+				await bundleCli(config, packageRoot, paths._package)
+			}
 		}
 
 		// 13. hooks.postBundle
@@ -241,7 +275,8 @@ export async function pack(options: PackOptions = {}): Promise<void> {
 				exists: !!path && fs.existsSync(Path.join(paths._package, filename))
 			})),
 			copyEntries: options.copy,
-			cli: options.cli,
+			copyDirEntries: options.copyDir,
+			bundleConfigs: bundleConfigs.length > 0 ? bundleConfigs : undefined,
 			packageName: String(packageJSON.name || ''),
 			usesSvelte,
 			svelteChecker: { hasSvelteDependency }

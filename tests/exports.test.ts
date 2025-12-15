@@ -1,6 +1,7 @@
 import { describe, test, expect } from 'bun:test'
-import { rewriteExports, getPublishWarnings } from '../forward/pack/exports'
+import { rewriteExports, getPublishWarnings, updatePackageJson } from '../forward/pack/exports'
 import type { SvelteDependencyChecker } from '../forward/pack/svelte-detection'
+import type { OutputPackageJson } from '../forward/pack/types'
 
 // Mock checker that returns false for all files
 const noSvelteChecker: SvelteDependencyChecker = {
@@ -156,5 +157,151 @@ describe('getPublishWarnings', () => {
 		})
 
 		expect(warnings.length).toBeGreaterThan(3) // Multiple lines for each issue
+	})
+})
+
+describe('updatePackageJson', () => {
+	test('removes scripts field from output', () => {
+		const json: OutputPackageJson = {
+			name: 'test',
+			scripts: {
+				build: 'tsc',
+				test: 'vitest'
+			},
+			exports: { '.': './src/index.ts' }
+		}
+
+		updatePackageJson({
+			json,
+			distDir: 'dist',
+			extraFiles: [],
+			packageName: 'test',
+			usesSvelte: false,
+			svelteChecker: noSvelteChecker
+		})
+
+		expect(json.scripts).toBeUndefined()
+	})
+
+	test('removes devDependencies, private, and publishConfig', () => {
+		const json: OutputPackageJson = {
+			name: 'test',
+			devDependencies: { typescript: '^5.0.0' },
+			private: true,
+			publishConfig: { directory: '_package' },
+			exports: { '.': './src/index.ts' }
+		}
+
+		updatePackageJson({
+			json,
+			distDir: 'dist',
+			extraFiles: [],
+			packageName: 'test',
+			usesSvelte: false,
+			svelteChecker: noSvelteChecker
+		})
+
+		expect(json.devDependencies).toBeUndefined()
+		expect(json.private).toBeUndefined()
+		expect(json.publishConfig).toBeUndefined()
+	})
+
+	test('preserves existing files array entries without duplication', () => {
+		const json: OutputPackageJson = {
+			name: 'test',
+			files: ['dist', '!dist/**/*.test.*'],
+			exports: { '.': './src/index.ts' }
+		}
+
+		updatePackageJson({
+			json,
+			distDir: 'dist',
+			extraFiles: [],
+			packageName: 'test',
+			usesSvelte: false,
+			svelteChecker: noSvelteChecker
+		})
+
+		// Should not duplicate 'dist'
+		expect(json.files!.filter(f => f === 'dist').length).toBe(1)
+		// Should preserve negation pattern
+		expect(json.files).toContain('!dist/**/*.test.*')
+	})
+
+	test('adds LICENSE, README.md to files array', () => {
+		const json: OutputPackageJson = {
+			name: 'test',
+			exports: { '.': './src/index.ts' }
+		}
+
+		updatePackageJson({
+			json,
+			distDir: 'dist',
+			extraFiles: [],
+			packageName: 'test',
+			usesSvelte: false,
+			svelteChecker: noSvelteChecker
+		})
+
+		expect(json.files).toContain('dist')
+		expect(json.files).toContain('LICENSE')
+		expect(json.files).toContain('README.md')
+	})
+
+	test('adds extra files to files array', () => {
+		const json: OutputPackageJson = {
+			name: 'test',
+			exports: { '.': './src/index.ts' }
+		}
+
+		updatePackageJson({
+			json,
+			distDir: 'dist',
+			extraFiles: [
+				{
+					filename: 'CHANGELOG.md',
+					exists: true 
+				},
+				{
+					filename: 'MISSING.md',
+					exists: false 
+				}
+			],
+			packageName: 'test',
+			usesSvelte: false,
+			svelteChecker: noSvelteChecker
+		})
+
+		expect(json.files).toContain('CHANGELOG.md')
+		expect(json.files).not.toContain('MISSING.md')
+	})
+
+	test('adds copy entry top-level directories to files array', () => {
+		const json: OutputPackageJson = {
+			name: 'test',
+			exports: { '.': './src/index.ts' }
+		}
+
+		updatePackageJson({
+			json,
+			distDir: 'dist',
+			extraFiles: [],
+			copyEntries: [
+				{
+					from: '../cli/src',
+					to: 'cli/src' 
+				},
+				{
+					from: './assets',
+					to: 'assets' 
+				}
+			],
+			packageName: 'test',
+			usesSvelte: false,
+			svelteChecker: noSvelteChecker
+		})
+
+		expect(json.files).toContain('cli')
+		expect(json.files).toContain('assets')
 	})
 })

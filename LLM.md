@@ -51,8 +51,10 @@ bun scripts/pack.ts
 | `outDir` | `string` | `'_package'` | Output directory name |
 | `distDir` | `string` | `'dist'` | Distribution directory name within outDir |
 | `extraFiles` | `string[]` | `[]` | Additional files to copy to package root (searched up to 2 parent dirs) |
-| `copy` | `CopyEntry[]` | `[]` | Directories/files to copy into the package |
-| `cli` | `CliBundleConfig` | `undefined` | CLI bundling configuration |
+| `copy` | `CopyEntry[]` | `[]` | Directories/files to copy into the package (granular control) |
+| `copyDir` | `CopyDirEntry[]` | `[]` | Simplified directory copying with optional remapping |
+| `bundle` | `BundleConfig \| BundleConfig[]` | `undefined` | Bundle entry points (CLI, workers, etc.) |
+| `cli` | `BundleConfig` | `undefined` | **Deprecated:** Use `bundle` instead |
 | `hooks` | `PackHooks` | `undefined` | Lifecycle hooks |
 
 ---
@@ -77,9 +79,44 @@ copy: [
 
 ---
 
-### `CliBundleConfig`
+### `CopyDirEntry`
 
-Used in `cli` option to bundle a CLI entry point.
+Used in `copyDir` option for simplified directory copying with optional file remapping.
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `from` | `string` | Yes | Source directory, relative to package root |
+| `to` | `string` | No | Destination directory in output (defaults to basename of `from`) |
+| `exclude` | `string[]` | No | Glob patterns to exclude |
+| `remap` | `Record<string, string>` | No | Remap specific files/folders to different locations |
+
+**Example:**
+```ts
+copyDir: [
+  {
+    from: '../cli',
+    to: 'cli',
+    exclude: ['**/__*/**', 'node_modules/**', '.svelte-kit/**'],
+    remap: {
+      // Remap files within the copied structure
+      'cli-output/svelte.config.js': 'svelte.config.js',
+      'cli-output/vite.config.ts': 'vite.config.ts'
+    }
+  }
+]
+```
+
+This copies:
+- `../cli/src/*` → `cli/src/*`
+- `../cli/static/*` → `cli/static/*`
+- `../cli/cli-output/svelte.config.js` → `cli/svelte.config.js` (remapped)
+- `../cli/cli-output/vite.config.ts` → `cli/vite.config.ts` (remapped)
+
+---
+
+### `BundleConfig` (formerly `CliBundleConfig`)
+
+Used in `bundle` option to bundle entry points (CLI tools, workers, etc.).
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -88,13 +125,14 @@ Used in `cli` option to bundle a CLI entry point.
 | `format` | `'esm' \| 'cjs'` | `'esm'` | Output format |
 | `platform` | `'node' \| 'browser'` | `'node'` | Target platform |
 | `external` | `string[]` | `[]` | External dependencies (supports patterns like `'node:*'`) |
-| `shebang` | `boolean` | `false` | Add `#!/usr/bin/env bun` shebang to output |
+| `shebang` | `boolean` | `false` | Add `#!/usr/bin/env node` shebang (also adds to package.json `bin`) |
 | `transforms` | `CliTransform[]` | `[]` | Post-bundle string transforms |
 | `binName` | `string` | `undefined` | Sets/overrides package.json `"bin"` mapping key |
+| `minify` | `boolean` | `false` | Minify the output |
 
-**Example:**
+**Single Bundle Example:**
 ```ts
-cli: {
+bundle: {
   entry: './src/cli/index.ts',
   output: 'bin/my-cli.js',
   shebang: true,
@@ -103,11 +141,31 @@ cli: {
 }
 ```
 
+**Multiple Bundles Example:**
+```ts
+bundle: [
+  {
+    entry: './src/cli/main.ts',
+    output: 'bin/cli.js',
+    shebang: true,
+    binName: 'my-package'
+  },
+  {
+    entry: './src/worker.ts',
+    output: 'worker.js',
+    platform: 'browser',
+    minify: true
+  }
+]
+```
+
+> **Note:** Only entries with `shebang: true` are added to the package.json `bin` field.
+
 ---
 
 ### `CliTransform`
 
-Used in `cli.transforms` for post-bundle string replacements.
+Used in `bundle.transforms` for post-bundle string replacements. This is useful for fixing paths that change after bundling (e.g., `__dirname`-based paths).
 
 | Property | Type | Description |
 |----------|------|-------------|
@@ -118,7 +176,9 @@ Used in `cli.transforms` for post-bundle string replacements.
 ```ts
 transforms: [
   { find: '__VERSION__', replace: '1.0.0' },
-  { find: /console\.log\([^)]*\);?/g, replace: '' }
+  { find: /console\.log\([^)]*\);?/g, replace: '' },
+  // Fix __dirname paths after bundling changes directory depth
+  { find: "resolve(__dirname, '../..')", replace: "resolve(__dirname, '..')" }
 ]
 ```
 
@@ -162,23 +222,45 @@ await pack({
   
   extraFiles: ['CHANGELOG.md', '.npmrc'],
   
+  // Granular copying
   copy: [
     { from: './templates', to: 'templates' },
     { from: './bin', to: 'bin', exclude: ['*.test.ts', '*.spec.ts'] }
   ],
   
-  cli: {
-    entry: './src/cli/main.ts',
-    output: 'bin/cli.js',
-    format: 'esm',
-    platform: 'node',
-    external: ['node:*', 'bun'],
-    shebang: true,
-    binName: 'my-package',
-    transforms: [
-      { find: '__DEV__', replace: 'false' }
-    ]
-  },
+  // Simplified directory copying with remapping
+  copyDir: [
+    {
+      from: '../cli',
+      to: 'cli',
+      exclude: ['node_modules/**', '.svelte-kit/**'],
+      remap: {
+        'cli-output/svelte.config.js': 'svelte.config.js'
+      }
+    }
+  ],
+  
+  // Multiple bundle entry points
+  bundle: [
+    {
+      entry: './src/cli/main.ts',
+      output: 'bin/cli.js',
+      format: 'esm',
+      platform: 'node',
+      external: ['node:*', 'bun'],
+      shebang: true,
+      binName: 'my-package',
+      transforms: [
+        { find: '__DEV__', replace: 'false' }
+      ]
+    },
+    {
+      entry: './src/worker.ts',
+      output: 'worker.js',
+      platform: 'browser',
+      minify: true
+    }
+  ],
   
   hooks: {
     prePack: 'bun run typecheck',
@@ -200,7 +282,7 @@ import { definePackOptions } from '@refzlund/repo/pack'
 
 export default definePackOptions({
   input: './src',
-  cli: {
+  bundle: {
     entry: './cli.ts',
     output: 'bin/cli.js',
     shebang: true
@@ -221,14 +303,15 @@ export default definePackOptions({
 7. Runs `publint` for validation
 8. Copies `package.json`, `README.md`, `LICENSE` to output
 9. Copies `extraFiles` to output
-10. Copies `copy` entries
-11. Runs `postCopy` hook
-12. Bundles CLI (if configured)
-13. Runs `postBundle` hook
-14. Removes `.stories.*` files from dist
-15. Rewrites `package.json` exports for publishing
-16. Validates `publishConfig.directory`
-17. Runs `postPack` hook
+10. Copies `copy` entries (granular)
+11. Copies `copyDir` entries (with remapping)
+12. Runs `postCopy` hook
+13. Bundles entry points (if configured)
+14. Runs `postBundle` hook
+15. Removes `.stories.*` files from dist
+16. Rewrites `package.json` exports for publishing
+17. Validates `publishConfig.directory`
+18. Runs `postPack` hook
 
 ---
 
@@ -251,9 +334,10 @@ The `package.json` in `_package/` will have:
 - `devDependencies` removed
 - `private` field removed
 - `publishConfig` removed
+- `scripts` removed
 - `exports` rewritten to point to `./dist/*`
-- `bin` updated if CLI was bundled
-- `files` array generated
+- `bin` updated if any bundle has `shebang: true`
+- `files` array generated (without duplicates)
 
 ---
 

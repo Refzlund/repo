@@ -1,5 +1,5 @@
 import Path from 'node:path'
-import type { OutputPackageJson, CopyEntry, CliBundleConfig } from './types'
+import type { OutputPackageJson, CopyEntry, CopyDirEntry, CliBundleConfig } from './types'
 import { computeBinName } from './utils/normalize-path'
 import type { SvelteDependencyChecker } from './svelte-detection'
 
@@ -54,8 +54,10 @@ export interface UpdatePackageJsonOptions {
 	}>
 	/** Copy entries that were processed */
 	copyEntries?: CopyEntry[]
-	/** CLI bundle config if CLI was bundled */
-	cli?: CliBundleConfig
+	/** CopyDir entries that were processed */
+	copyDirEntries?: CopyDirEntry[]
+	/** Bundle configs if entries were bundled */
+	bundleConfigs?: CliBundleConfig[]
 	/** Original package name (for bin name computation) */
 	packageName: string
 	/** Whether svelte-package detected Svelte usage */
@@ -74,7 +76,8 @@ export function updatePackageJson(options: UpdatePackageJsonOptions): void {
 		distDir,
 		extraFiles,
 		copyEntries,
-		cli,
+		copyDirEntries,
+		bundleConfigs,
 		packageName,
 		usesSvelte,
 		svelteChecker
@@ -84,38 +87,59 @@ export function updatePackageJson(options: UpdatePackageJsonOptions): void {
 	delete json.devDependencies
 	delete json.private
 	delete json.publishConfig
+	delete json.scripts
+
+	// Helper to add to files array without duplicates (preserves negation patterns)
+	const addToFiles = (entry: string) => {
+		if (!json.files!.includes(entry)) json.files!.push(entry)
+	}
 
 	// Build files array
 	json.files ??= []
-	json.files.push(distDir, 'LICENSE', 'README.md')
+	addToFiles(distDir)
+	addToFiles('LICENSE')
+	addToFiles('README.md')
 
 	for (const { filename, exists } of extraFiles) {
-		if (exists) json.files.push(filename)
+		if (exists) addToFiles(filename)
 	}
 
 	if (copyEntries) {
 		for (const copyEntry of copyEntries) {
 			const toPath = copyEntry.to.replace(/^\.\//, '')
 			const topLevel = toPath.split(/[/\\]/)[0]
-			if (topLevel) json.files.push(topLevel)
+			if (topLevel) addToFiles(topLevel)
 		}
 	}
 
-	// Handle CLI bundling
-	if (cli) {
-		const cliOutput = cli.output.startsWith('./') ? cli.output : `./${cli.output}`
-		const binName = cli.binName || computeBinName(packageName)
-		json.bin = {
-			...(typeof json.bin === 'object' && json.bin ? json.bin : {}),
-			[binName]: cliOutput
+	if (copyDirEntries) {
+		for (const entry of copyDirEntries) {
+			const toName = entry.to ?? Path.basename(entry.from)
+			const topLevel = toName.replace(/^\.\//, '').split(/[/\\]/)[0]
+			if (topLevel) addToFiles(topLevel)
 		}
-
-		const topLevel = cliOutput.replace(/^\.\//, '').split(/[/\\]/)[0]
-		if (topLevel) json.files.push(topLevel)
 	}
 
-	// Deduplicate files
-	json.files = [...new Set(json.files)]
+	// Handle bundle configs (CLI, workers, etc.)
+	if (bundleConfigs && bundleConfigs.length > 0) {
+		for (const config of bundleConfigs) {
+			const outputPath = config.output.startsWith('./') ? config.output : `./${config.output}`
+
+			// Only add to bin if it has a shebang (it's meant to be an executable)
+			if (config.shebang) {
+				const binName = config.binName || computeBinName(packageName)
+				json.bin = {
+					...(typeof json.bin === 'object' && json.bin ? json.bin : {}),
+					[binName]: outputPath
+				}
+			}
+
+			const topLevel = outputPath.replace(/^\.\//, '').split(/[/\\]/)[0]
+			if (topLevel) addToFiles(topLevel)
+		}
+	}
+
+	// Note: deduplication is handled by addToFiles helper above
 
 	// Rewrite exports
 	if (json.exports && typeof json.exports === 'object') {

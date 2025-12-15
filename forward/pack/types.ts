@@ -7,6 +7,17 @@ export interface CopyEntry {
 	exclude?: string[]
 }
 
+export interface CopyDirEntry {
+	/** Source directory, relative to package root */
+	from: string
+	/** Destination directory in output (defaults to basename of `from`) */
+	to?: string
+	/** Glob patterns to exclude */
+	exclude?: string[]
+	/** Remap specific files/folders to different locations within the destination */
+	remap?: Record<string, string>
+}
+
 export interface CliTransform {
 	/** String or regex pattern to find */
 	find: string | RegExp
@@ -31,7 +42,12 @@ export interface CliBundleConfig {
 	transforms?: CliTransform[]
 	/** If provided, sets/overrides package.json "bin" mapping key */
 	binName?: string
+	/** Minify the output (default: false) */
+	minify?: boolean
 }
+
+/** @deprecated Use BundleConfig instead */
+export type BundleConfig = CliBundleConfig
 
 export interface PackHooks {
 	/** Runs before anything else */
@@ -57,9 +73,16 @@ export interface PackOptions {
 	distDir?: string
 	/** Additional files to copy to package root (searched up to 2 parent dirs) */
 	extraFiles?: string[]
-	/** Directories/files to copy into the package */
+	/** Directories/files to copy into the package (granular control) */
 	copy?: CopyEntry[]
-	/** CLI bundling configuration */
+	/** Simplified directory copying with optional remapping */
+	copyDir?: CopyDirEntry[]
+	/** 
+	 * Bundle entry points (CLI, workers, etc.)
+	 * Supports single config or array for multiple bundles
+	 */
+	bundle?: CliBundleConfig | CliBundleConfig[]
+	/** @deprecated Use `bundle` instead. CLI bundling configuration */
 	cli?: CliBundleConfig
 	/** Lifecycle hooks */
 	hooks?: PackHooks

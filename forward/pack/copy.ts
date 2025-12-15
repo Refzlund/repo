@@ -12,6 +12,17 @@ export interface CopyOptions {
 	exclude?: string[]
 }
 
+export interface CopyDirOptions {
+	/** Source directory (absolute) */
+	fromDir: string
+	/** Destination directory (absolute) */
+	toDir: string
+	/** Glob patterns to exclude */
+	exclude?: string[]
+	/** Remap specific files/folders to different locations */
+	remap?: Record<string, string>
+}
+
 /**
  * Recursively copy files/directories with optional glob-based exclusion.
  * Uses picomatch for robust glob pattern matching.
@@ -95,3 +106,87 @@ export function deleteFilesRecursively(dir: string, pattern: RegExp): void {
  * Pattern for story files that should be excluded from published packages.
  */
 export const STORY_FILE_PATTERN = /\.stories\.(svelte|ts|js|d\.ts|svelte\.d\.ts)$/
+
+/**
+ * Copy a directory with optional remapping support.
+ * Files can be remapped to different locations within the destination.
+ */
+export async function copyDirectory(options: CopyDirOptions): Promise<void> {
+	const { fromDir, toDir, exclude = [], remap = {} } = options
+
+	if (!fs.existsSync(fromDir)) {
+		console.warn(`Warning: Source directory does not exist: ${fromDir}`)
+		return
+	}
+
+	const stat = fs.statSync(fromDir)
+	if (!stat.isDirectory()) {
+		console.warn(`Warning: Source is not a directory: ${fromDir}`)
+		return
+	}
+
+	const isExcluded = exclude.length > 0
+		? picomatch(exclude, { dot: true })
+		: () => false
+
+	const ensureDir = (dir: string) => {
+		if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+	}
+
+	const copyFile = (src: string, dest: string) => {
+		ensureDir(Path.dirname(dest))
+		fs.copyFileSync(src, dest)
+	}
+
+	// Normalize remap keys for consistent matching
+	const normalizedRemap: Record<string, string> = {}
+	for (const [from, to] of Object.entries(remap)) {
+		normalizedRemap[normalizeRelPath(from)] = to
+	}
+
+	const visit = (current: string) => {
+		const rel = normalizeRelPath(Path.relative(fromDir, current))
+		if (!rel) return
+
+		// Check if excluded
+		if (isExcluded(rel) || isExcluded(rel + '/')) return
+
+		const s = fs.statSync(current)
+
+		// Check for remap
+		const remappedTo = normalizedRemap[rel]
+
+		if (s.isDirectory()) {
+			// If this directory is remapped, copy the whole thing to the new location
+			if (remappedTo !== undefined) {
+				const destPath = Path.join(toDir, remappedTo)
+				copyRecursive({
+					fromRoot: current,
+					toRoot: destPath,
+					exclude
+				})
+				return // Don't descend further, we copied the whole subtree
+			}
+
+			// Normal directory traversal
+			const destDir = Path.join(toDir, rel)
+			ensureDir(destDir)
+			const entries = fs.readdirSync(current, { withFileTypes: true })
+			for (const entry of entries) {
+				visit(Path.join(current, entry.name))
+			}
+			return
+		}
+
+		// File
+		const destRel = remappedTo !== undefined ? remappedTo : rel
+		const dest = Path.join(toDir, destRel)
+		copyFile(current, dest)
+	}
+
+	ensureDir(toDir)
+	const entries = fs.readdirSync(fromDir, { withFileTypes: true })
+	for (const entry of entries) {
+		visit(Path.join(fromDir, entry.name))
+	}
+}
