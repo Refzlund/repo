@@ -322,11 +322,12 @@ async function pack() {
 
 	// Get package name from package.json
 	const packageJSON = JSON.parse(fs.readFileSync(paths.package, 'utf-8'))
-	const { name, version, publishConfig = { directory: undefined } } = packageJSON as {
+	const { name, version, private: isPrivate, publishConfig } = packageJSON as {
 		name: string
 		version: string
-		publishConfig: {
-			directory: string | undefined
+		private?: boolean
+		publishConfig?: {
+			directory?: string
 		}
 	}
 
@@ -491,8 +492,31 @@ async function pack() {
 		spinner.succeed('Finished packaging '.green + packageName + ' ' + packageVersion + ' -> '.gray + _package.italic)
 	}
 
-	if(publishConfig.directory !== _package) {
-		console.log(`${'Warning'.yellow}: package.json's ${'publishConfig.directory'.cyan} !== ${_package.italic}`)
+	// Validation for Changesets/Publishing
+	const warnings: string[] = []
+
+	if (isPrivate === true) {
+		warnings.push(
+			`${'private: true'.red} is set in package.json.`,
+			`Changesets will ${'ignore'.red} this package and it will ${'not be published'.red}.`,
+			`Set ${'private: false'.green} (or remove it) to enable publishing.`
+		)
+	}
+
+	if (publishConfig?.directory !== _package) {
+		warnings.push(
+			`${'publishConfig.directory'.cyan} is missing or incorrect.`,
+			`It should be set to ${('"' + _package + '"').green} in package.json.`,
+			`Currently: ${JSON.stringify(publishConfig?.directory || undefined).red}`,
+			`Without this, changesets will publish the ${'source root'.red} instead of the build output.`
+		)
+	}
+
+	if (warnings.length > 0) {
+		console.log('')
+		console.log('⚠  PUBLISHING CONFIGURATION ISSUES  ⚠'.bgYellow.black.bold)
+		console.log(warnings.join('\n'))
+		console.log('')
 	}
 }
 
